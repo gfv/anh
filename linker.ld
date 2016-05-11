@@ -1,12 +1,14 @@
 SECTIONS {
-  . = 0x00400000;
-  .text : {
-    amh.o (.text);
+  .test_code 0x10000000 : { /* 256M aligned */
     test.o (.text);
   }
 
-  .data : {
-    amh.o (.data);
+  .test_data 0x20000000 : {
     test.o (.data);
   }
+
+  .test_bss  0x30000000 : {
+    test.o (.bss);
+  }
 }
+INSERT AFTER .text;

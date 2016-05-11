@@ -1,20 +1,20 @@
-LDOPTS = -Wl,-sectalign,,.text,0x1000
+LDOPTS = 
 
 default: amh
 
 clean:
 	rm *.o amh; true
 
-amh: Makefile amh.o test.o
-	gcc -o amh $(LDOPTS) amh.o test.o
+amh: amh.o test.o
+	gcc -static -g -o amh amh.o -lm -Wl,-T,linker.ld
 
 amh.o: amh.c
-	gcc -o amh.o -c amh.c
+	gcc -std=gnu99 -g -o amh.o -c amh.c
 
 test.o: test.asm
-	nasm -f macho64 test.asm
+	nasm -f elf64 test.asm
 
 dump: amh
-	gobjdump --all amh
+	objdump -fh amh
 
 .PHONY: default dump
