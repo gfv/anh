@@ -1,17 +1,14 @@
-%define TEST_NAME xor3
+%define TEST_NAME cpuid
 %include "test_prologue.asm.inc"
 
 section .text
   _Test_Start
+  xor rax, rax
 
 %assign i 0
 %rep UNROLL
-  mov rax, 0x1122334455667788
-  mov rbx, 0x8877665544332211
-
-  xor rax, rbx
-  xor rbx, rax
-  xor rax, rbx
+  cpuid	
+  mov [result], rax
 %assign i i+8
 %endrep
 
