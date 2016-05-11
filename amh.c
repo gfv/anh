@@ -31,18 +31,19 @@ long int time_table[MAX_ITER];
 volatile int stop_iterations = 0;
 
 int main( int argc, char** argv ) {
-  run_count = 1024; assert( run_count > 0 );
+  run_count = 1; assert( run_count > 0 );
 
-  double avg_ti = 0;
 
   printf( "AMH started: %lld runs per %d unrolled operations\n", run_count, UNROLL );
 
   int test_num = 0;
   while ( test_names[test_num] != 0 ) {
-    printf( "Running test %s\n", test_names[test_num] );
+    double avg = 0;
+
+    printf( "  Running test %s\n", test_names[test_num] );
     test_setup[test_num]();
 
-    printf( "Running warmup for %ds...\n", WARMUP_TIME );
+    printf( "   Running warmup for %ds...\n", WARMUP_TIME );
     struct timespec series_start_time;
     struct timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &series_start_time);
@@ -54,7 +55,7 @@ int main( int argc, char** argv ) {
       if (series_start_time.tv_sec + WARMUP_TIME < current_time.tv_sec) break;
     }
 
-    printf( "Running tests for %ds...\n", TEST_TIME );
+    printf( "   Running tests for %ds...\n", TEST_TIME );
     clock_gettime(CLOCK_MONOTONIC, &series_start_time);
     while ( iterations < MAX_ITER ) {
       struct timespec begin_run;
@@ -78,41 +79,48 @@ int main( int argc, char** argv ) {
       iterations++;
     }
 
-    avg_ti = avg_ti / iterations;
+    avg = avg / iterations;
 
-    double stddev_ti = 0;
+    double stddev = 0;
 
     for ( int i = 0; i < iterations; i++ ) {
-      stddev_ti += (time_table[i] - avg_ti) * (time_table[i] - avg_ti);
+      stddev += (time_table[i] - avg_ti) * (time_table[i] - avg_ti);
     }
-    stddev_ti = sqrt(stddev_ti / iterations);
+    stddev = sqrt(stddev / (iterations * run_count * UNROLL));
 
     results[test_num].name = test_names[test_num];
     results[test_num].iterations = iterations;
-    results[test_num].avg = avg_ti;
-    results[test_num].stddev = stddev_ti;
+    results[test_num].avg = avg;
+    results[test_num].stddev = stddev;
 
     test_num++;
   }
+
+  printf( "Results:\n" );
 
   for ( int i = 0; i < TEST_NUM; i++ ) {
     char* time_unit = "ns";
     double avg;
     double stddev;
+    double confidence_d = 1.96 * (results[i].stddev / sqrt (results[i].iterations * run_count * UNROLL));
+
     if ( results[i].avg > 1e6 ) {
       avg = results[i].avg / 1e6;
       stddev = results[i].stddev / 1e6;
+      confidence_d /= 1e6;
       time_unit = "ms";
     } else if ( avg_ti > 1e3 ) {
       avg = results[i].avg / 1e3;
       stddev = results[i].stddev / 1e3;
+      confidence_d /= 1e3;
       time_unit = "ms";
     } else {
       avg = results[i].avg;
       stddev = results[i].stddev;
     }
 
-    printf( "%s\t%i runs\tAverage operation: %.2lf ± %.2lf %s (%.1f%%)\n", results[i].name, results[i].iterations, avg, stddev, time_unit, stddev*100 / avg );
+    printf( "%s\t%i runs\tAverage operation: %.2lf ± %.2lf%s (95%% conf-int %.2lf%s; %.2lf%s)\n", results[i].name, results[i].iterations, avg, stddev, time_unit,
+            avg - confidence_d, time_unit, avg + confidence_d, time_unit);
   }
 
   return 0;
