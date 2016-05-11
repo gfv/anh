@@ -1,18 +1,26 @@
+global asm_setup
 global run_test
 
 extern instruction_count
 extern run_count
 
+datasize equ 32 * 1024 * 1024
+
 section .data
+
 pattern:
-%rep (1048576 / 8)
-dq 0x5555555555555555
+%rep 256
+db 0x55
 %endrep
 
 result: dq 0
 checkpoint_start: dq 0
 
 section .bss
+resd 1
+source: resb datasize
+resd 1
+destination: resb datasize
 
 section .text
 run_test:
@@ -24,25 +32,31 @@ reset:
   shl rdx, 32
   or rax, rdx
   mov [checkpoint_start], rax
+; setup code complete
 
+; test operation
+; cache line size is 64 bytes
+; and a Meg contains 16384 cache lines
+stride equ 128
 test_body:
-  mov rsi, 0
-  mov [result], rsi
-  mov rbx, pattern
+  mov rsi, source + 56
+  mov rdi, destination
+  mov rcx, datasize / stride
 
-.bodyloop:
-  mov rax, [rbx + 8 * rsi]
-  popcnt rcx, rax
-  add [result], rcx
-  inc rsi
-  cmp rsi, (1048576 / 8)
-  jne .bodyloop
+.mcpy:
+  mov rax, [rsi]
+  mov [rdi], rax
+  sub rcx, 1
+  add rsi, stride
+  add rdi, 8
+  test rcx, rcx
+  jnz .mcpy
   
-
-; looptest
-  dec r15
+; inloop 
+  sub r15, 1
   jg test_body
 
+; destroy code
   rdtsc
   shl rdx, 32
   or rax, rdx
@@ -52,4 +66,13 @@ shutdown:
   mov rax, [result]
   ret
 
+asm_setup:
+  vmovdqu ymm1, [pattern]
+  mov rsi, source
+  mov rcx, datasize / 32
 
+.load:
+  vmovdqu [rsi], ymm1
+  sub rcx, 1
+  jnz .load
+  ret

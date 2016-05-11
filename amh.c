@@ -4,11 +4,12 @@
 #include <assert.h>
 
 extern long run_test();
+extern long asm_setup();
 volatile long long instruction_count;
 volatile long long run_count;
 
-#define WARMUP_N 32
-#define N 256
+#define WARMUP_N 256
+#define N 1024
 
 double iprs[N];
 long int times[N];
@@ -19,13 +20,15 @@ int main( int argc, char** argv ) {
   double avg_is = 0;
   double avg_ti = 0;
 
-  printf( "amh started\n" );
-  printf( "running %d warmup rounds...\n", WARMUP_N );
+  asm_setup();
+
+  printf( "AMH started\n" );
+  printf( "Running %d warmup rounds...\n", WARMUP_N );
   for ( int i = 0; i < WARMUP_N; i++ ) {
     run_test();
   }
 
-  printf( "running %d testing rounds...\n", N );
+  printf( "Running %d testing rounds...\n", N );
   for ( int i = 0; i < N; i++ ) {
     struct timespec begin_run;
     struct timespec end_run;
